@@ -1,90 +1,10 @@
-# Backup/archive files
-*.tar
-*.zip
-*.7z
-*.rar
-
-# Windows / system files
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# PowerShell
-*.ps1.bak
-
-# Git
-.git/
-.gitignore~
-
-# Build / temp output
+﻿node_modules/
+**/node_modules/
 dist/
 build/
-out/
-tmp/
-temp/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
-venv/
-
-# Node
-node_modules/
-
-# Logs
-*.log
-
-# If these are generated backups and not source data, ignore them
-DockerData/
-WSL/
-projects/
-
-# --- BEGIN AUTO-GENERATED SECTION ---
-# OS-specific caches
-.DS_Store
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Editor / IDE
-.vscode/
-.idea/
-*.sublime-workspace
-*.sublime-project
-
-# Environment / secret files
 .env
 .env.*
-*.env
-
-# Coverage & test caches
-coverage/
-*.lcov
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build artefacts
-.cache/
-.parcel-cache/
-.next/
-.vite/
-.dist/
-build/
-out/
-.tmp/
-.temp/
-
-# Misc binaries & temp files
-*.exe
-*.dll
-*.so
-*.dylib
-*.tmp
-*.bak
-*.old
-# --- END AUTO-GENERATED SECTION ---
+*.log
+.DS_Store
+Thumbs.db
+package-lock.json
