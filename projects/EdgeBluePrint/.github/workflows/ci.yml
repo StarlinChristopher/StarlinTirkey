@@ -1,4 +1,4 @@
-name: Build, test, scan, publish, and sign
+﻿name: Build, test, scan, publish, and sign
 
 on:
   push:
@@ -25,6 +25,7 @@ jobs:
         shell: bash
         run: |
           test -f k8s/edgeblueprint.yaml
+          test -f k8s/rbac.yaml
           test -f services/ingestion-node/package-lock.json
           test -f config/sql/init.sql
           test -f config/nginx/default.conf
@@ -79,7 +80,9 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
       - name: Kubernetes dry run
-        run: kubectl apply --dry-run=client --validate=false -f k8s/edgeblueprint.yaml
+        run: |
+          kubectl apply --dry-run=client --validate=false -f k8s/rbac.yaml
+          kubectl apply --dry-run=client --validate=false -f k8s/edgeblueprint.yaml
       - name: Stop stack
         if: always()
         run: docker compose down -v
@@ -153,3 +156,4 @@ jobs:
               --certificate-identity-regexp='https://github.com/${{ github.repository }}/*' \
               --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
           done
+
