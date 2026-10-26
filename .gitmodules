@@ -1,0 +1,3 @@
+[submodule "projects/youtube-agentic-ai-studio"]
+	path = projects/youtube-agentic-ai-studio
+	url = https://github.com/StarlinChristopher/youtube-agentic-ai-studio.git

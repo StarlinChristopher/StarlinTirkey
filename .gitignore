@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 **/node_modules/
 dist/
 build/
@@ -7,4 +7,27 @@ build/
 *.log
 .DS_Store
 Thumbs.db
-package-lock.json
+# Keep dependency lockfiles tracked for reproducible, auditable builds
+# package-lock.json
+OllamaModels/
+WSL/
+Docker/wsl/
+DockerDesktopVMM/
+.vscode/
+vscode/
+**/.vscode/
+**/vscode/
+**/*.pem
+**/*.key
+**/*secret*
+**/*password*
+*.vhdx
+*.tar
+
+# Nested working repositories are audited independently
+projects/rea/node_modules/
+projects/rea/.cache/
+projects/rea/.turbo/
+projects/rea/.venv/
+projects/rea/dist/
+projects/rea/.env

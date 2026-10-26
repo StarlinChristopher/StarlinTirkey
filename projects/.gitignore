@@ -1,0 +1,13 @@
+﻿node_modules/
+dist/
+build/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+# Keep lockfiles tracked for reproducible dependency audits
+# package-lock.json
+rea/
+multi-container-app/
+ecommerce-store/frontend/vite/
