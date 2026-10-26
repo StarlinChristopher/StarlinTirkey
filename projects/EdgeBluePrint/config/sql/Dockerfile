@@ -1,2 +1,2 @@
-FROM dhi.io/postgres:18-alpine
+FROM dhi.io/postgres@sha256:c075241e0b60eca5cb40e61484feb582b17bd756e8c48a482d93321607a332ce
 COPY init.sql /docker-entrypoint-initdb.d/init.sql
