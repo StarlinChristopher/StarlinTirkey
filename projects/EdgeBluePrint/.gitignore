@@ -6,6 +6,8 @@
 
 # Docker runtime data and local state
 data/
+backups/
+
 !data/
 data/sql_data/
 data/volatile_buffer/
