@@ -4,6 +4,6 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    command: ["sh", "-c", "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 services\telematics-python\main.py "]
+    command: ["sh", "-c", "python -m pip install debugpy -t /tmp && PYTHONPATH=/tmp python -m debugpy --wait-for-client --listen 0.0.0.0:5678 services/telematics-python/main.py"]
     ports:
       - 5678:5678

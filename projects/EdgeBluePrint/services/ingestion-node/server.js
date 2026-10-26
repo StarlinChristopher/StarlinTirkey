@@ -21,8 +21,21 @@ function validatePayload(data) {
   return Boolean(data && typeof data === 'object' && typeof data.sensorId === 'string' && data.sensorId.length > 0 && data.sensorId.length <= 128 && typeof data.temperature === 'number' && Number.isFinite(data.temperature));
 }
 
+async function ensureSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS telemetry (
+      id BIGSERIAL PRIMARY KEY,
+      sensor_id VARCHAR(128) NOT NULL,
+      temperature DOUBLE PRECISION NOT NULL,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS telemetry_received_at_idx ON telemetry (received_at);
+  `);
+}
+
 async function checkDatabase() {
   await pool.query('SELECT 1');
+  await pool.query("SELECT to_regclass('public.telemetry')");
 }
 
 const server = http.createServer(async (req, res) => {
@@ -85,5 +98,17 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => log('info', 'ingestion engine started', { port: PORT }));
+(async () => {
+  for (let attempt = 1; attempt <= 12; attempt += 1) {
+    try {
+      await ensureSchema();
+      server.listen(PORT, () => log('info', 'ingestion engine started', { port: PORT }));
+      break;
+    } catch (error) {
+      log('warning', 'database initialization retry', { attempt, error: error.message });
+      if (attempt === 12) process.exit(1);
+      await new Promise(resolve => setTimeout(resolve, Math.min(5000, attempt * 500)));
+    }
+  }
+})();
 process.on('SIGTERM', async () => { await pool.end(); server.close(() => process.exit(0)); });

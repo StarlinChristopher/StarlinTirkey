@@ -1,1 +1,4 @@
-# To ensure app dependencies are ported from your virtual environment/host machine into your container, run 'pip freeze > requirements.txt' in the terminal to overwrite this file
+# Dependencies required by the root debug image and telematics service.
+numpy==2.3.4
+psycopg[binary]==3.2.10
+pytest==8.4.2

@@ -1,4 +1,5 @@
 **/__pycache__
+**/.pytest_cache
 **/.venv
 **/.classpath
 **/.dockerignore
@@ -22,13 +23,15 @@
 **/Dockerfile*
 **/node_modules
 k8s/secrets.yaml
-services/telematics-python/DockerDesktopVMM
 **/npm-debug.log
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml
 
 # Docker runtime data, local state, and persistent volumes
+DockerDesktopVMM/
+**/DockerDesktopVMM/
+*.vhdx
 data/
 docker-data/
 **/docker-data/
@@ -38,6 +41,9 @@ volumes/
 # Secrets, certificates, and local credentials
 secrets/
 **/secrets/
+config/*token*.txt
+config/*password*.txt
+config/*secret*.txt
 *.pem
 *.key
 *.crt

@@ -5,6 +5,9 @@
 .idea/
 
 # Docker runtime data and local state
+DockerDesktopVMM/
+**/DockerDesktopVMM/
+*.vhdx
 data/
 backups/
 

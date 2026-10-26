@@ -152,15 +152,24 @@ spec:
         - name: python-telematics
           image: ghcr.io/REPLACE_OWNER/edgeblueprint-python-telematics:REPLACE_TAG
           imagePullPolicy: IfNotPresent
+          env:
+            - name: INGESTION_URL
+              value: http://node-ingestion:3000/telemetry
+            - name: TELEMETRY_TOKEN_FILE
+              value: /run/secrets/telemetry_api_token
+          volumeMounts:
+            - { name: buffer, mountPath: /app/buffer }
+            - { name: telemetry-token, mountPath: /run/secrets/telemetry_api_token, subPath: telemetry_api_token, readOnly: true }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
-          volumeMounts: [{ name: buffer, mountPath: /app/buffer }]
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: 1, memory: 1Gi }
-      volumes: [{ name: buffer, emptyDir: {} }]
+      volumes:
+        - { name: buffer, emptyDir: {} }
+        - { name: telemetry-token, secret: { secretName: edgeblueprint-api } }
 ---
 apiVersion: v1
 kind: Service

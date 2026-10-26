@@ -129,6 +129,7 @@ services:
     build:
       context: ./services/telematics-python
       dockerfile: Dockerfile
+      target: runner
     container_name: fleetcue_telematics
     security_opt:
       - no-new-privileges:true
@@ -150,10 +151,16 @@ services:
           memory: 512M
     environment:
       BUFFER_PATH: /app/buffer
-      SQL_HOST: sql-db
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      INGESTION_URL: ${INGESTION_URL:-http://node-ingestion:3000/telemetry}
+      TELEMETRY_TOKEN_FILE: /run/secrets/telemetry_api_token
+      MAX_BUFFER_FILES: ${MAX_BUFFER_FILES:-1000}
+      MAX_BUFFER_BYTES: ${MAX_BUFFER_BYTES:-1073741824}
+      UPLOAD_TIMEOUT_SECONDS: ${UPLOAD_TIMEOUT_SECONDS:-5}
+      RETRY_BASE_SECONDS: ${RETRY_BASE_SECONDS:-1}
+      DRAIN_INTERVAL_SECONDS: ${DRAIN_INTERVAL_SECONDS:-15}
+      BATCH_INTERVAL_SECONDS: ${BATCH_INTERVAL_SECONDS:-5}
     secrets:
+      - telemetry_api_token
       - postgres_password
     develop:
       watch:
