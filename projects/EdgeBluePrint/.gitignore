@@ -1,0 +1,56 @@
+# EdgeBluePrint repository ignores
+# Editor and local Docker development files
+.vscode/
+**/.vscode/
+.idea/
+
+# Docker runtime data and local state
+data/
+!data/
+data/sql_data/
+data/volatile_buffer/
+docker-data/
+**/docker-data/
+volumes/
+**/volumes/
+
+node_modules/
+**/node_modules/
+npm-debug.log*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite
+*.db
+*.log
+.env
+
+# Local smoke-test certificate bypass artifacts
+TestResults/
+*.env
+*.env.local
+secrets/*.txt
+config/sql/postgres_password.txt
+config/api/telemetry_api_token.txt
+config/cloudflare_tunnel_token.txt
+config/*token*.txt
+config/*secret*.txt
+*.secret
+client_secret.json
+credentials*.json
+cloudflared/
+.github/local-secrets/
+certs/*.pem
+certs/*.key
+k8s/secrets.yaml
+k8s/edgeblueprint.rendered.yaml
+models/
+*.bin
+*.gguf
+*.vhdx
+*.tar
+vscode/
+**/vscode/
+.DS_Store
+Thumbs.db

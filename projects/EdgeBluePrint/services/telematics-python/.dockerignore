@@ -1,0 +1,13 @@
+DockerDesktopVMM/
+*.vhdx
+__pycache__/
+.venv/
+.vscode/
+vscode/
+*.env
+*.pem
+*.key
+*secret*
+*password*
+venv/
+*.pyc

@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edgeblueprint
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sql-data
+  namespace: edgeblueprint
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-ingestion
+  namespace: edgeblueprint
+spec:
+  selector: { app: node-ingestion }
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-ingestion
+  namespace: edgeblueprint
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: node-ingestion } }
+  template:
+    metadata: { labels: { app: node-ingestion } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: node-ingestion
+          image: ghcr.io/REPLACE_OWNER/edgeblueprint-node-ingestion:REPLACE_TAG
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 3000 }]
+          env:
+            - name: SQL_HOST
+              value: sql-db
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: edgeblueprint-db, key: database } }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: edgeblueprint-db, key: username } }
+          volumeMounts:
+            - { name: telemetry-token, mountPath: /run/secrets/telemetry_api_token, subPath: telemetry_api_token, readOnly: true }
+            - { name: postgres-password, mountPath: /run/secrets/postgres_password, subPath: postgres_password, readOnly: true }
+          readinessProbe: { httpGet: { path: /ready, port: 3000 } }
+          livenessProbe: { httpGet: { path: /health, port: 3000 } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+        - { name: telemetry-token, secret: { secretName: edgeblueprint-api } }
+        - { name: postgres-password, secret: { secretName: edgeblueprint-db } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-db
+  namespace: edgeblueprint
+spec:
+  selector: { app: sql-db }
+  ports: [{ name: postgres, port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-db
+  namespace: edgeblueprint
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sql-db } }
+  template:
+    metadata: { labels: { app: sql-db } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: sql-db
+          image: ghcr.io/REPLACE_OWNER/edgeblueprint-sql-db:REPLACE_TAG
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: edgeblueprint-db, key: database } }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: edgeblueprint-db, key: username } }
+            - name: POSTGRES_PASSWORD_FILE
+              value: /run/secrets/postgres_password
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: postgres-password, mountPath: /run/secrets/postgres_password, subPath: postgres_password, readOnly: true }
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 1Gi }
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: sql-data } }
+        - { name: postgres-password, secret: { secretName: edgeblueprint-db } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-telematics
+  namespace: edgeblueprint
+spec:
+  selector: { app: python-telematics }
+  ports: [{ name: metrics, port: 9090, targetPort: 9090 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-telematics
+  namespace: edgeblueprint
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: python-telematics } }
+  template:
+    metadata: { labels: { app: python-telematics } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: python-telematics
+          image: ghcr.io/REPLACE_OWNER/edgeblueprint-python-telematics:REPLACE_TAG
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts: [{ name: buffer, mountPath: /app/buffer }]
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 1, memory: 1Gi }
+      volumes: [{ name: buffer, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reverse-proxy
+  namespace: edgeblueprint
+spec:
+  type: ClusterIP
+  selector: { app: reverse-proxy }
+  ports: [{ name: https, port: 443, targetPort: 443 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverse-proxy
+  namespace: edgeblueprint
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: reverse-proxy } }
+  template:
+    metadata: { labels: { app: reverse-proxy } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: reverse-proxy
+          image: nginx@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          ports: [{ containerPort: 443 }]
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }

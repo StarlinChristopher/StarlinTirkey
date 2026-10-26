@@ -1,0 +1,184 @@
+services:
+  # EpsumThings: Node.js Ingestion engine
+  node-ingestion:
+    build:
+      context: ./services/ingestion-node
+      dockerfile: Dockerfile
+    container_name: epsumthings_ingestion
+    restart: unless-stopped
+    expose:
+      - "3000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      sql-db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      NODE_ENV: production
+      SQL_HOST: sql-db
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      OLLAMA_HOST: http://host.docker.internal:11434
+    secrets:
+      - telemetry_api_token
+      - postgres_password
+    develop:
+      watch:
+        - action: sync
+          path: ./services/ingestion-node/server.js
+          target: /app/server.js
+        - action: rebuild
+          path: ./services/ingestion-node/Dockerfile
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/ready', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Local indexed timeseries database
+  sql-db:
+    build:
+      context: ./config/sql
+      dockerfile: Dockerfile
+    container_name: epsumthings_db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - sql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: epsumthings_proxy
+    restart: unless-stopped
+    depends_on:
+      node-ingestion:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate --spider -q https://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  cloudflared:
+    image: cloudflare/cloudflared@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39
+    container_name: epsumthings_tunnel
+    profiles:
+      - tunnel
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command: tunnel --no-autoupdate run --token-file /run/secrets/cloudflare_tunnel_token
+    read_only: true
+    tmpfs:
+      - /tmp
+    secrets:
+      - cloudflare_tunnel_token
+    depends_on:
+      reverse-proxy:
+        condition: service_healthy
+
+  # FleetCue: Async Python Engine with Drive E: Buffer
+  python-telematics:
+    build:
+      context: ./services/telematics-python
+      dockerfile: Dockerfile
+    container_name: fleetcue_telematics
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      sql-db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - volatile_buffer:/app/buffer
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      BUFFER_PATH: /app/buffer
+      SQL_HOST: sql-db
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+    secrets:
+      - postgres_password
+    develop:
+      watch:
+        - action: sync
+          path: ./services/telematics-python/main.py
+          target: /app/main.py
+        - action: rebuild
+          path: ./services/telematics-python/Dockerfile
+        - action: rebuild
+          path: ./services/telematics-python/requirements.txt
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; assert os.path.isdir('/app/buffer')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sql_data:
+  volatile_buffer:
+
+secrets:
+  postgres_password:
+    file: ./config/sql/postgres_password.txt
+  telemetry_api_token:
+    file: ./config/api/telemetry_api_token.txt
+  cloudflare_tunnel_token:
+    file: ./config/cloudflare_tunnel_token.txt
