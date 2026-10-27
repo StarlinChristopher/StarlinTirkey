@@ -26,6 +26,9 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    labels:
+      logging.service: node-ingestion
+      logging.alerts: oversized-search-query
     environment:
       NODE_ENV: production
       SQL_HOST: sql-db

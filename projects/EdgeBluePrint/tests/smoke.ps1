@@ -41,4 +41,22 @@ if (($telemetry | ConvertFrom-Json).status -ne 'ACCEPTED') {
     throw "Telemetry check failed: $telemetry"
 }
 
-Write-Output 'API smoke tests passed: /health and authenticated /telemetry'
+$search = Invoke-SmokeRequest @('-k', '--fail-with-body', '--silent', '--show-error', "$BaseUrl/search?q=smoke-test", '-H', "Authorization: Bearer $token")
+$searchResult = $search | ConvertFrom-Json
+if ($searchResult.query -ne 'smoke-test' -or -not ($searchResult.results | Where-Object { $_.sensorId -eq 'smoke-test' })) {
+    throw "Search check failed: $search"
+}
+
+$oversizedQuery = 'x' * 129
+$oversizedResponsePath = Join-Path $env:TEMP "edgeblueprint-search-$PID.json"
+try {
+    $status = & curl.exe -k --silent --show-error --output $oversizedResponsePath --write-out '%{http_code}' "$BaseUrl/search?q=$oversizedQuery" -H "Authorization: Bearer $token"
+    if ($LASTEXITCODE -ne 0 -or $status -ne '400') {
+        $body = if (Test-Path -LiteralPath $oversizedResponsePath) { Get-Content -LiteralPath $oversizedResponsePath -Raw } else { '' }
+        throw "Oversized search query check failed with HTTP $status`: $body"
+    }
+} finally {
+    Remove-Item -LiteralPath $oversizedResponsePath -Force -ErrorAction SilentlyContinue
+}
+
+Write-Output 'API smoke tests passed: /health, authenticated /telemetry, /search, and oversized-query rejection'
