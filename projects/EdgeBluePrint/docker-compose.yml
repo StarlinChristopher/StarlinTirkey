@@ -181,9 +181,57 @@ services:
       retries: 3
       start_period: 10s
 
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: edgeblueprint_loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./config/monitoring/loki-config.yaml:/etc/loki/config.yaml:ro
+      - ./config/monitoring/loki-rules.yaml:/loki/rules/edgeblueprint-rules.yaml:ro
+      - loki_data:/loki
+    expose:
+      - "3100"
+    security_opt:
+      - no-new-privileges:true
+
+  alloy:
+    image: grafana/alloy:v1.10.2
+    container_name: edgeblueprint_alloy
+    restart: unless-stopped
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    volumes:
+      - ./config/monitoring/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - "12345"
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - loki
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: edgeblueprint_alertmanager
+    restart: unless-stopped
+    command: --config.file=/etc/alertmanager/alertmanager.yaml --storage.path=/alertmanager
+    volumes:
+      - ./config/monitoring/alertmanager.yaml:/etc/alertmanager/alertmanager.yaml:ro
+      - alertmanager_data:/alertmanager
+    expose:
+      - "9093"
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - alertmanager_webhook_url
+    depends_on:
+      - loki
+
 volumes:
   sql_data:
   volatile_buffer:
+  loki_data:
+  alertmanager_data:
 
 secrets:
   postgres_password:
@@ -192,3 +240,5 @@ secrets:
     file: ./config/api/telemetry_api_token.txt
   cloudflare_tunnel_token:
     file: ./config/cloudflare_tunnel_token.txt
+  alertmanager_webhook_url:
+    file: ./config/monitoring/alertmanager_webhook_url.txt

@@ -1,13 +1,13 @@
 # Load this rule file in Loki Ruler and route the alert through Alertmanager.
-# The ingestion service emits JSON logs with message="telemetry search failed"
-# and error="Search query is too long".
+# The ingestion service emits JSON logs with event="oversized_search_query".
+# Query values are intentionally never logged.
 groups:
   - name: edgeblueprint-ingestion
     interval: 1m
     rules:
       - alert: EdgeBlueprintRepeatedOversizedSearchQueries
         expr: |
-          sum(count_over_time({service="node-ingestion"} | json | error="Search query is too long" [5m])) >= 10
+          sum(count_over_time({service="node-ingestion"} | json | event="oversized_search_query" [5m])) >= 10
         for: 5m
         labels:
           severity: warning

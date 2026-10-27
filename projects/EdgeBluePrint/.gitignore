@@ -41,6 +41,8 @@ config/api/telemetry_api_token.txt
 config/cloudflare_tunnel_token.txt
 config/*token*.txt
 config/*secret*.txt
+config/monitoring/alertmanager_webhook_url.txt
+!config/monitoring/alertmanager_webhook_url.txt.example
 *.secret
 client_secret.json
 credentials*.json

@@ -1,0 +1,37 @@
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "node_ingestion" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_logging_service"]
+    regex         = "node-ingestion"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+    regex         = "/(.*)"
+    replacement   = "$1"
+  }
+
+  rule {
+    target_label = "service"
+    replacement  = "node-ingestion"
+  }
+}
+
+loki.source.docker "node_ingestion" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.node_ingestion.output
+  forward_to = [loki.write.edgeblueprint.receiver]
+}
+
+loki.write "edgeblueprint" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
