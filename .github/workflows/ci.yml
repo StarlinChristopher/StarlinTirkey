@@ -1,0 +1,196 @@
+name: Build, test, scan, publish, and sign
+
+on:
+  push:
+  pull_request:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/edgeblueprint
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Compose inputs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime-secrets, certs | Out-Null
+          'ci-telemetry-token-123456789012345678901234567890' | Set-Content .runtime-secrets/telemetry_api_token.txt -NoNewline
+          'ci-postgres-password-123456789012345678901234567890' | Set-Content .runtime-secrets/postgres_password.txt -NoNewline
+          @"
+          POSTGRES_DB=telemetry_db
+          POSTGRES_USER=edge_user
+          "@ | Set-Content .env -NoNewline
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/privkey.pem -out certs/fullchain.pem -days 1 -subj '/CN=localhost'
+      - name: Start stack
+        shell: pwsh
+        run: docker compose up -d --build --pull always --wait
+      - name: Run Windows smoke test
+        shell: pwsh
+        run: ./tests/smoke.ps1
+      - name: Stop stack
+        if: always()
+        shell: pwsh
+        run: docker compose down -v
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: azure/setup-kubectl@v4
+      - name: Validate referenced files
+        shell: bash
+        run: |
+          test -f k8s/edgeblueprint.yaml
+          test -f k8s/rbac.yaml
+          test -f services/ingestion-node/package-lock.json
+          test -f config/sql/init.sql
+          test -f config/nginx/default.conf
+      - name: Create CI runtime inputs
+        shell: bash
+        run: |
+          mkdir -p .runtime-secrets config certs
+          printf 'ci-telemetry-token-123456789012345678901234567890\n' > .runtime-secrets/telemetry_api_token.txt
+          printf 'ci-postgres-password-123456789012345678901234567890\n' > .runtime-secrets/postgres_password.txt
+          printf 'ci-cloudflare-token-123456789012345678901234567890\n' > config/cloudflare_tunnel_token.txt
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/privkey.pem -out certs/fullchain.pem -days 1 -subj '/CN=localhost'
+          printf 'POSTGRES_DB=telemetry_db\nPOSTGRES_USER=edge_user\n' > .env
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Build images
+        run: docker compose build --pull
+      - name: Start stack
+        run: docker compose up -d --wait --pull always
+      - name: Smoke test
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq
+          chmod +x tests/smoke.sh
+          ./tests/smoke.sh
+      - name: Node dependency audit
+        working-directory: services/ingestion-node
+        run: npm ci --ignore-scripts --omit=dev && npm audit --omit=dev --audit-level=high
+      - name: Telematics unit tests
+        working-directory: services/telematics-python
+        run: python -m pip install --requirement requirements.txt --requirement requirements-test.txt && python -m pytest -q test_main.py
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: edgeblueprint-node-ingestion:latest
+          artifact-name: sbom-node.spdx.json
+      - name: Scan Node image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: edgeblueprint-node-ingestion:latest
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+      - name: Scan Python image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: edgeblueprint-python-telematics:latest
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+      - name: Scan PostgreSQL image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: edgeblueprint-sql-db:latest
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+      - name: Kubernetes dry run
+        run: |
+          kubectl apply --dry-run=client --validate=false -f k8s/rbac.yaml
+          kubectl apply --dry-run=client --validate=false -f k8s/edgeblueprint.yaml
+      - name: Buffer volume readiness check
+        shell: pwsh
+        run: ./scripts/check-buffer-volume.ps1 -Volume edgeblueprint_volatile_buffer
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
+
+  publish-sign:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/edgeblueprint-node-ingestion
+            ghcr.io/${{ github.repository_owner }}/edgeblueprint-python-telematics
+            ghcr.io/${{ github.repository_owner }}/edgeblueprint-sql-db
+          tags: |
+            type=sha
+            type=raw,value=${{ github.sha }}
+      - name: Build and push immutable images
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/ingestion-node
+          file: ./services/ingestion-node/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-node-ingestion:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+      - name: Build and push Python image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/telematics-python
+          file: ./services/telematics-python/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-python-telematics:${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+      - name: Build and push PostgreSQL image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./config/sql
+          file: ./config/sql/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-sql-db:${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign published images with GitHub OIDC
+        env:
+          COSIGN_EXPERIMENTAL: 'true'
+        shell: bash
+        run: |
+          for image in node-ingestion python-telematics sql-db; do
+            cosign sign --yes "ghcr.io/${{ github.repository_owner }}/edgeblueprint-$image:${{ github.sha }}"
+          done
+      - name: Verify signatures
+        env:
+          COSIGN_EXPERIMENTAL: 'true'
+        shell: bash
+        run: |
+          for image in node-ingestion python-telematics sql-db; do
+            cosign verify "ghcr.io/${{ github.repository_owner }}/edgeblueprint-$image:${{ github.sha }}" \
+              --certificate-identity-regexp='https://github.com/${{ github.repository }}/*' \
+              --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
+          done
