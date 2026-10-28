@@ -13,6 +13,9 @@ permissions:
 
 jobs:
   smoke-windows:
+    defaults:
+      run:
+        working-directory: projects/EdgeBluePrint
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +42,9 @@ jobs:
         run: docker compose down -v
 
   validate:
+    defaults:
+      run:
+        working-directory: projects/EdgeBluePrint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,10 +81,10 @@ jobs:
           chmod +x tests/smoke.sh
           ./tests/smoke.sh
       - name: Node dependency audit
-        working-directory: services/ingestion-node
+        working-directory: projects/EdgeBluePrint/services/ingestion-node
         run: npm ci --ignore-scripts --omit=dev && npm audit --omit=dev --audit-level=high
       - name: Telematics unit tests
-        working-directory: services/telematics-python
+        working-directory: projects/EdgeBluePrint/services/telematics-python
         run: python -m pip install --requirement requirements.txt --requirement requirements-test.txt && python -m pytest -q test_main.py
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -150,8 +156,8 @@ jobs:
       - name: Build and push immutable images
         uses: docker/build-push-action@v6
         with:
-          context: ./services/ingestion-node
-          file: ./services/ingestion-node/Dockerfile
+          context: ./projects/EdgeBluePrint/services/ingestion-node
+          file: ./projects/EdgeBluePrint/services/ingestion-node/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-node-ingestion:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -160,8 +166,8 @@ jobs:
       - name: Build and push Python image
         uses: docker/build-push-action@v6
         with:
-          context: ./services/telematics-python
-          file: ./services/telematics-python/Dockerfile
+          context: ./projects/EdgeBluePrint/services/telematics-python
+          file: ./projects/EdgeBluePrint/services/telematics-python/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-python-telematics:${{ github.sha }}
           provenance: mode=max
@@ -169,8 +175,8 @@ jobs:
       - name: Build and push PostgreSQL image
         uses: docker/build-push-action@v6
         with:
-          context: ./config/sql
-          file: ./config/sql/Dockerfile
+          context: ./projects/EdgeBluePrint/config/sql
+          file: ./projects/EdgeBluePrint/config/sql/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/edgeblueprint-sql-db:${{ github.sha }}
           provenance: mode=max
