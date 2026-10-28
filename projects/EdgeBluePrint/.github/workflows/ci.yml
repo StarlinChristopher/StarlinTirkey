@@ -19,9 +19,9 @@ jobs:
       - name: Set up Docker Compose inputs
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path config/api, config/sql, certs | Out-Null
-          'ci-telemetry-token-123456789012345678901234567890' | Set-Content config/api/telemetry_api_token.txt -NoNewline
-          'ci-postgres-password-123456789012345678901234567890' | Set-Content config/sql/postgres_password.txt -NoNewline
+          New-Item -ItemType Directory -Force -Path .runtime-secrets, certs | Out-Null
+          'ci-telemetry-token-123456789012345678901234567890' | Set-Content .runtime-secrets/telemetry_api_token.txt -NoNewline
+          'ci-postgres-password-123456789012345678901234567890' | Set-Content .runtime-secrets/postgres_password.txt -NoNewline
           @"
           POSTGRES_DB=telemetry_db
           POSTGRES_USER=edge_user
@@ -55,9 +55,9 @@ jobs:
       - name: Create CI runtime inputs
         shell: bash
         run: |
-          mkdir -p config/api config/sql certs
-          printf 'ci-telemetry-token-123456789012345678901234567890\n' > config/api/telemetry_api_token.txt
-          printf 'ci-postgres-password-123456789012345678901234567890\n' > config/sql/postgres_password.txt
+          mkdir -p .runtime-secrets config certs
+          printf 'ci-telemetry-token-123456789012345678901234567890\n' > .runtime-secrets/telemetry_api_token.txt
+          printf 'ci-postgres-password-123456789012345678901234567890\n' > .runtime-secrets/postgres_password.txt
           printf 'ci-cloudflare-token-123456789012345678901234567890\n' > config/cloudflare_tunnel_token.txt
           openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/privkey.pem -out certs/fullchain.pem -days 1 -subj '/CN=localhost'
           printf 'POSTGRES_DB=telemetry_db\nPOSTGRES_USER=edge_user\n' > .env
@@ -68,8 +68,12 @@ jobs:
       - name: Start stack
         run: docker compose up -d --wait --pull always
       - name: Smoke test
-        shell: pwsh
-        run: ./tests/smoke.ps1
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq
+          chmod +x tests/smoke.sh
+          ./tests/smoke.sh
       - name: Node dependency audit
         working-directory: services/ingestion-node
         run: npm ci --ignore-scripts --omit=dev && npm audit --omit=dev --audit-level=high
