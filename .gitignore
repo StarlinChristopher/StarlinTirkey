@@ -1,28 +1,70 @@
+# Dependencies, generated output, and local caches
 node_modules/
 **/node_modules/
 dist/
+**/dist/
 build/
+**/build/
+coverage/
+**/coverage/
+.cache/
+**/.cache/
+.turbo/
+**/.turbo/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.log
+
+# Local environment files and credentials; keep example templates tracked
 .env
 .env.*
-*.log
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+*.der
+*.secret
+*.secrets
+*secret*
+*password*
+*credential*
+*token*
+
+# Local machine/editor files
 .DS_Store
 Thumbs.db
-# Keep dependency lockfiles tracked for reproducible, auditable builds
-# package-lock.json
+.vscode/
+**/.vscode/
+vscode/
+**/vscode/
+.idea/
+
+# Runtime data, databases, backups, and large local assets
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.vhdx
+*.tar
+*.tar.gz
+*.dump
+*.sql.gz
 OllamaModels/
+ollama_models/
 WSL/
 Docker/wsl/
 DockerDesktopVMM/
-.vscode/
-vscode/
-**/.vscode/
-**/vscode/
-**/*.pem
-**/*.key
-**/*secret*
-**/*password*
-*.vhdx
-*.tar
+backups/
+**/backups/
+data/
+**/data/
 
 # Nested working repositories are audited independently
 projects/rea/node_modules/

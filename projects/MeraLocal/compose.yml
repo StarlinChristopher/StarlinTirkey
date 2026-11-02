@@ -1,0 +1,12 @@
+services:
+  vault:
+    image: docker.io/hashicorp/vault:latest
+    container_name: local-vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:?Set VAULT_TOKEN in projects/MeraLocal/.env}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    volumes:
+      - /mnt/e/StarlinTirkey/vault_data:/vault/file
