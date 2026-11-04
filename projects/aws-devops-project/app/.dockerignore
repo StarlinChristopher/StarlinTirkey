@@ -1,0 +1,36 @@
+# Version control and editor metadata
+.git
+.gitignore
+.github
+.idea
+.vscode
+
+# Environment and secret material
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+**/*.crt
+**/*secret*
+**/*credential*
+
+# Build outputs and local caches
+target
+**/target
+.mvn/wrapper/maven-wrapper.jar
+**/.m2
+**/.cache
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+
+# Logs, temporary files, and OS metadata
+**/*.log
+**/*.tmp
+.DS_Store

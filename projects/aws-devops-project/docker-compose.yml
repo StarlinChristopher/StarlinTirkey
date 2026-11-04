@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./app
+    image: aws-devops-backend:local
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      APP_ENV: ${APP_ENV:-dev}
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,uid=65532,gid=65532,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "java", "-cp", "/app/app.jar", "com.example.app.HealthCheck"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+    develop:
+      watch:
+        - action: rebuild
+          path: ./app
