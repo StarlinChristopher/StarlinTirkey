@@ -1,0 +1,4 @@
+aws_region      = "ap-south-1"
+aws_profile     = "aws-prod"
+vpc_cidr        = "10.70.0.0/16"
+cluster_version = "1.32"

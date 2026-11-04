@@ -1,0 +1,84 @@
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.secret
+*.pem
+*.key
+kubeconfig
+
+# Terraform state and local data
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.tfplan
+
+# Java build artifacts
+app/target/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Local-only configuration and secrets; keep the non-secret template tracked.
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.secret
+*.secrets
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+kubeconfig*
+**/kubeconfig*
+**/secret.yaml
+**/secrets/**
+**/private/**
+**/credentials*.json
+**/*credential*.json
+
+# Terraform local inputs/state and generated plans; keep provider lock files tracked.
+**/terraform.tfvars
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/tfplan
+**/.terraform/
+
+# Build outputs, dependency trees, caches, logs, and local data.
+node_modules/
+**/node_modules/
+**/target/
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/*.log
+*.vhdx
+**/*.vhdx
+backups/
+**/backups/
+downloads/
+**/downloads/
+tmp/
+**/tmp/
+exports/
+**/exports/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.dump
+*.sql.gz

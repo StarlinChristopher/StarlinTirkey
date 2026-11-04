@@ -1,0 +1,4 @@
+aws_region      = "us-east-1"
+aws_profile     = "aws-staging"
+vpc_cidr        = "10.60.0.0/16"
+cluster_version = "1.32"
