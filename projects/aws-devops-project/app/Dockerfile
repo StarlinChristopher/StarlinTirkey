@@ -7,7 +7,7 @@ COPY pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp dependency:go-offline
 
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp verify
 
 FROM dhi.io/eclipse-temurin:17-alpine AS runtime
 WORKDIR /app
